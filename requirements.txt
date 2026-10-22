@@ -1,7 +1,10 @@
 jupyter
-matplotlib
+ipykernel
 numpy
 pandas
-scikit-learn
+matplotlib
 seaborn
+scikit-learn
 networkx
+catboost
+lightgbm
