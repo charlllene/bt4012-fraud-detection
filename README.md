@@ -2,11 +2,11 @@
 
 ## Overview
 
-This repository contains the implementation and experiments for the BT4012 Fraud Detection Kaggle Competition 2026.
+This repository contains the implementation, experiments and final submission pipeline for the BT4012 Fraud Detection Kaggle Competition 2026.
 
-The task is to classify fraudulent Bitcoin transactions using anonymised transaction features and graph information. The dataset is temporally partitioned, with training data covering time steps 1–35 and test data covering time steps 36–49.
+The task is to identify fraudulent Bitcoin transactions using anonymised transaction features and graph information. The dataset is temporally partitioned, with training data covering time steps 1–35 and test data covering time steps 36–49.
 
-The primary evaluation metric is **ROC-AUC**. Since the test period occurs after the training period, the modelling approach focuses on temporal validation and generalisation to future transactions.
+The official evaluation metric is **ROC-AUC**. Since the test period occurs after the training period, the modelling approach focuses on chronological validation and generalisation to future transactions.
 
 ## Repository Structure
 
@@ -26,10 +26,7 @@ bt4012-fraud-detection/
 │   ├── 05_advanced_graph_features.ipynb
 │   ├── 06_chronological_stacking.ipynb
 │   ├── 07_full_stack_pseudo_labelling.ipynb
-│   ├── 08_diverse_model_stacking.ipynb
-│   ├── 09_time_relative_features.ipynb
-│   ├── 10_feature_engineering_anonymised.ipynb
-│   └── 11_spearman.ipynb
+│   └── 08_robust_view_bagging.ipynb
 ├── Final/
 │   └── A0282609X.ipynb
 ├── final_outputs/
@@ -40,37 +37,65 @@ bt4012-fraud-detection/
 └── README.md
 ```
 
-The `notebooks/` directory contains the exploratory experiments and model development process. The `Final/` directory contains the consolidated notebook used to reproduce the selected Kaggle submissions.
+The `notebooks/` directory documents exploratory analysis, model development and experimental comparisons. The `Final/` directory contains the consolidated pipeline for reproducing the two selected Kaggle submissions.
 
-The raw datasets and generated submission files are stored locally and are not intended to be committed to GitHub.
+The raw datasets and generated submission CSV files are stored locally and excluded from version control.
 
 ## Methodology
 
 ### Exploratory Data Analysis
 
-Initial analysis examines the distribution of transaction features, class imbalance, missing values and temporal changes in transaction patterns.
+Initial analysis investigates class imbalance, missing values, feature distributions and changes in transaction characteristics across time steps.
 
-The transaction edge list is also explored to understand the available graph structure.
+The transaction edge list is also examined to understand the network structure and identify opportunities for graph-based feature engineering.
 
 ### Model Development
 
-The experiments investigate several approaches:
+The modelling process explores several approaches:
 
-- Gradient boosting models, including HistGradientBoosting and CatBoost.
+- Gradient boosting models, including HistGradientBoosting (HGB), CatBoost and LightGBM.
 - Hyperparameter tuning and ensemble weight optimisation.
 - Graph-based feature engineering using transaction relationships.
-- Chronological stacking with time-aware validation.
-- Pseudo-labelling to incorporate additional information from unlabelled transactions.
-- Alternative feature engineering and model combinations.
-- Spearman rank-based blending of selected model predictions.
+- Chronological stacking with a logistic regression meta-model.
+- Pseudo-labelling using high-confidence predictions from unlabelled transactions.
+- Alternative feature representations and model combinations.
+- Robust view-bagging with training-window diversification and rank-based aggregation.
+
+The final submissions use two different ensemble strategies.
+
+### Chronological Stacking
+
+Chronological stacking combines predictions from HistGradientBoosting, CatBoost and LightGBM using a logistic regression meta-model.
+
+Base-model predictions are generated using historical training and validation windows, allowing the meta-model to learn how to combine their outputs without training directly on the evaluation period.
+
+This approach aims to exploit complementary model behaviour while respecting the temporal ordering of transactions.
+
+### Robust View-Bagging
+
+The robust view-bagging approach introduces diversity across both feature representations and training periods.
+
+Three feature views are constructed:
+
+1. **Raw:** Original anonymised transaction features.
+2. **Graph:** Raw features supplemented with graph-based structural and neighbourhood information.
+3. **Full:** Graph features supplemented with within-time-step rank and standardised feature transformations.
+
+Models are trained using both the complete available labelled history and a more recent training window. This allows the ensemble to combine information from longer-term patterns and more recent transaction behaviour.
+
+Candidate predictions are evaluated through forward-chaining validation. The final ensemble applies model filtering and view-balanced rank averaging to reduce dependence on any single feature representation or model configuration.
+
+This strategy aims to improve resilience to temporal distribution shift by combining diverse predictions rather than relying on one model or feature set.
 
 ### Temporal Validation
 
-Rather than relying solely on random train-validation splits, models are evaluated using chronological validation periods.
+Chronological validation is used to assess performance on transactions occurring after the training period.
 
-This better reflects the competition's train-test structure, where predictions must generalise to transactions occurring at later time steps.
+This better reflects the competition's train-test separation than a conventional random train-validation split.
 
-ROC-AUC is the official competition metric. PR-AUC is also used as a supplementary metric during model development, particularly because of class imbalance.
+**ROC-AUC** is the official competition metric. **PR-AUC** is also examined during model development because fraudulent transactions represent a minority class.
+
+The two final pipelines retain their original validation and model-selection procedures rather than imposing a single selection rule across all experiments.
 
 ## Final Models and Results
 
@@ -78,22 +103,20 @@ Two submissions were selected based on their public leaderboard performance.
 
 | Submission | Method | Public ROC-AUC |
 |---|---|---|
-| `experiment18_stacking.csv` | Chronological stacking | 0.94914 |
-| `blend_exp12_18_25.csv` | Spearman rank blending | 0.94813 |
+| `sub_14_robust.csv` | Robust view-bagging ensemble | **0.95076** |
+| `experiment18_stacking.csv` | Chronological stacking | **0.94914** |
 
-The Spearman blend combines predictions from three experiments:
+Robust view-bagging achieved the highest public leaderboard ROC-AUC among the selected submissions.
 
-- Experiment 12: Temporal ensemble (notebook 04)
-- Experiment 18: Chronological stacking (notebook 06)
-- Experiment 25: Pseudo-labelled stacking (notebook 07)
+Chronological stacking was retained as the second submission because it provides a distinct modelling strategy based on a learned meta-model.
 
-These results are public leaderboard scores and may differ from performance on the private test partition.
+These scores reflect the public leaderboard only. Performance on the private leaderboard may differ.
 
 ## Reproducing the Final Submissions
 
 ### Environment Setup
 
-Python 3.12 is used for the final notebook.
+The final notebook is intended to run in a Python 3.12 environment.
 
 Clone the repository:
 
@@ -109,11 +132,13 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-Install the required dependencies:
+Install the dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
+
+The main modelling libraries include pandas, NumPy, scikit-learn, CatBoost, LightGBM and SciPy.
 
 ### Dataset Setup
 
@@ -127,7 +152,7 @@ data/raw/
 └── sample_submission.csv
 ```
 
-The dataset files are excluded from version control.
+The raw data files are excluded from version control.
 
 ### Running the Final Notebook
 
@@ -137,31 +162,37 @@ Open:
 Final/A0282609X.ipynb
 ```
 
-Select the project's Python virtual environment as the Jupyter kernel, then execute all cells in order.
+Select the project's Python virtual environment as the Jupyter kernel and execute all cells in order.
 
-The notebook includes the modelling pipelines and submission generation steps for the two selected final models.
+The notebook independently runs the chronological stacking and robust view-bagging pipelines, preserving their original training and validation procedures.
 
-The generated files are saved to `final_outputs/`:
+The generated submission files are saved to `final_outputs/`:
 
 ```text
 final_outputs/
 ├── experiment18_stacking.csv
-└── blend_exp12_18_25.csv
+└── sub_14_robust.csv
 ```
+
+The notebook also validates the submission schema, transaction order, row counts and prediction values.
 
 ### Reproducibility Verification
 
-The final notebook was executed successfully and both generated submission files were compared against the original CSVs submitted to Kaggle.
+The notebook includes an optional comparison against the original Kaggle submission CSV files stored in `submissions/`.
 
-Both files matched their respective originals numerically, with an absolute tolerance of \(10^{-12}\), and their transaction indices were in the same order.
+For each submission, the comparison checks column structure, transaction alignment and numerical differences between the original and regenerated predictions.
+
+The comparison uses an absolute tolerance of \(10^{-12}\). This check should be performed after executing the updated final notebook.
 
 ## Limitations
 
-The primary challenge is temporal distribution shift between the training and test periods. Validation performance may not fully reflect performance on future transactions.
+The primary challenge is temporal distribution shift between the training and test periods. Patterns learned from historical transactions may not generalise to later time steps.
 
-Other limitations include class imbalance, anonymised transaction features that restrict interpretability, and uncertainty introduced by pseudo-labelling.
+The anonymised features limit interpretability, while class imbalance creates additional challenges for model evaluation.
 
-Public leaderboard results are also based on only a subset of the test data, so the final private leaderboard ranking may differ.
+Graph-based and time-relative feature engineering may introduce unstable signals across periods. Ensemble diversification reduces reliance on individual components but does not guarantee robustness under future distribution shifts.
+
+Public leaderboard performance is measured on only a subset of the competition test data, so it may not accurately represent final private leaderboard performance.
 
 ## Project Information
 
