@@ -121,7 +121,7 @@ The final notebook is intended to run in a Python 3.12 environment.
 Clone the repository:
 
 ```bash
-git clone https://github.com/charllene/bt4012-fraud-detection.git
+git clone https://github.com/charlllene/bt4012-fraud-detection.git
 cd bt4012-fraud-detection
 ```
 
